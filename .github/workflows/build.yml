@@ -1,0 +1,87 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          swift --version
+          cmake --version | head -1
+
+      - name: Build app
+        env:
+          VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('0.1.{0}', github.run_number) }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          VERSION="${VERSION#v}" ./scripts/build-app.sh
+
+      - name: Smoke test
+        run: |
+          APP=dist/Notch.app
+          /usr/bin/perl "$APP/Contents/Resources/mediaremote-adapter.pl" \
+            "$APP/Contents/Frameworks/MediaRemoteAdapter.framework" \
+            "$APP/Contents/MacOS/MediaRemoteAdapterTestClient" test \
+            && echo "MediaRemote adapter: functional" \
+            || echo "::warning::MediaRemote adapter test failed on runner (expected without media)"
+
+          # Launch in demo mode, make sure it stays up, and grab a screenshot of the expanded notch.
+          defaults write com.ryanlatimer.Notch hasLaunchedBefore -bool true
+          NOTCH_DEMO=1 "$APP/Contents/MacOS/Notch" &
+          PID=$!
+          sleep 8
+          if ! kill -0 $PID 2>/dev/null; then
+            echo "::error::Notch exited during startup"
+            exit 1
+          fi
+          mkdir -p screenshots
+          screencapture -x screenshots/demo.png || true
+          kill $PID || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Notch
+          path: dist/Notch.zip
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: screenshots/
+          if-no-files-found: ignore
+
+      - name: Publish "latest" release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest dist/Notch.zip \
+            --title "Latest build" \
+            --notes "Automatic build of ${GITHUB_SHA::7}. See the README for install steps." \
+            --prerelease \
+            --target "$GITHUB_SHA"
+
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/Notch.zip --title "Notch $GITHUB_REF_NAME" --generate-notes
