@@ -44,8 +44,11 @@ enum TransientActivity: Equatable {
 }
 
 enum DebugFlags {
-    /// `NOTCH_DEMO=1` pins the notch open with sample media; used for CI screenshots.
-    static let demo = ProcessInfo.processInfo.environment["NOTCH_DEMO"] == "1"
+    /// `NOTCH_DEMO=expanded|collapsed` loads sample media, disables hover tracking and pins the
+    /// notch in that state. Used for the CI screenshots.
+    static let demoMode = ProcessInfo.processInfo.environment["NOTCH_DEMO"]
+    static let demo = demoMode != nil
+    static let demoExpanded = demoMode == "expanded"
 }
 
 @MainActor
@@ -94,7 +97,7 @@ final class NotchViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        if DebugFlags.demo {
+        if DebugFlags.demoExpanded {
             state = .expanded
         }
     }

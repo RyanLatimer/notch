@@ -36,9 +36,9 @@ enum VolumeControl {
     static var canSetVolume: Bool {
         guard let device = defaultOutputDevice else { return false }
         var address = volumeAddress
-        guard AudioHardwareServiceHasProperty(device, &address) else { return false }
+        guard AudioObjectHasProperty(device, &address) else { return false }
         var settable: DarwinBoolean = false
-        return AudioHardwareServiceIsPropertySettable(device, &address, &settable) == noErr && settable.boolValue
+        return AudioObjectIsPropertySettable(device, &address, &settable) == noErr && settable.boolValue
     }
 
     static var volume: Float? {
@@ -46,7 +46,7 @@ enum VolumeControl {
         var address = volumeAddress
         var value = Float32(0)
         var size = UInt32(MemoryLayout<Float32>.size)
-        guard AudioHardwareServiceGetPropertyData(device, &address, 0, nil, &size, &value) == noErr else { return nil }
+        guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &value) == noErr else { return nil }
         return value
     }
 
@@ -55,7 +55,7 @@ enum VolumeControl {
         var address = volumeAddress
         var value = Float32(min(1, max(0, newValue)))
         let size = UInt32(MemoryLayout<Float32>.size)
-        AudioHardwareServiceSetPropertyData(device, &address, 0, nil, size, &value)
+        AudioObjectSetPropertyData(device, &address, 0, nil, size, &value)
     }
 
     static var isMuted: Bool {
@@ -113,8 +113,8 @@ final class VolumeObserver {
         device = VolumeControl.defaultOutputDevice ?? kAudioObjectUnknown
         guard device != kAudioObjectUnknown else { return }
 
-        // The virtual main volume is synthesised by AudioHardwareService, so AudioObjectHasProperty
-        // may not report it; try it unconditionally, plus per-element scalars as a fallback.
+        // Not every device exposes every property; register what sticks. Per-element scalars
+        // cover devices whose virtual main volume doesn't send notifications.
         var candidates = [VolumeControl.volumeAddress, VolumeControl.muteAddress]
         for element: AudioObjectPropertyElement in [kAudioObjectPropertyElementMain, 1, 2] {
             candidates.append(AudioObjectPropertyAddress(

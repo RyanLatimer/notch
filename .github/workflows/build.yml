@@ -42,18 +42,21 @@ jobs:
             && echo "MediaRemote adapter: functional" \
             || echo "::warning::MediaRemote adapter test failed on runner (expected without media)"
 
-          # Launch in demo mode, make sure it stays up, and grab a screenshot of the expanded notch.
+          # Launch in each demo mode, make sure it stays up, and screenshot it.
           defaults write com.ryanlatimer.Notch hasLaunchedBefore -bool true
-          NOTCH_DEMO=1 "$APP/Contents/MacOS/Notch" &
-          PID=$!
-          sleep 8
-          if ! kill -0 $PID 2>/dev/null; then
-            echo "::error::Notch exited during startup"
-            exit 1
-          fi
           mkdir -p screenshots
-          screencapture -x screenshots/demo.png || true
-          kill $PID || true
+          for mode in expanded collapsed; do
+            NOTCH_DEMO=$mode "$APP/Contents/MacOS/Notch" &
+            PID=$!
+            sleep 6
+            if ! kill -0 $PID 2>/dev/null; then
+              echo "::error::Notch exited during startup ($mode)"
+              exit 1
+            fi
+            screencapture -x "screenshots/$mode.png" || true
+            kill $PID || true
+            sleep 1
+          done
 
       - uses: actions/upload-artifact@v4
         with:
