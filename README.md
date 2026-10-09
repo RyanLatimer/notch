@@ -20,15 +20,19 @@ don't need Xcode or a Mac to produce it. You only need the Mac to run it.
 
 ## Install (on your MacBook)
 
-1. Open the repo's **Releases** page on GitHub and download `Notch.zip` from **Latest build**.
-   You can also use the `Notch` artifact from any run on the **Actions** tab.
-2. Double-click the zip and drag `Notch.app` into **Applications**.
+1. Download `Notch.zip` from the [latest release](https://github.com/RyanLatimer/notch/releases/tag/latest).
+2. Double-click the zip and put `Notch.app` wherever you like. **You don't need the main Applications folder or an admin password.**
+   A good spot is an `Applications` folder inside your home folder (`~/Applications`); create it in Finder if it doesn't exist.
+   Your Desktop or Documents folder also works.
 3. The app isn't notarized (that needs a paid Apple developer account), so clear the download quarantine once.
-   Open **Terminal** and run:
+   Open **Terminal** and run this, replacing the path if you put the app somewhere else:
    ```sh
-   xattr -cr /Applications/Notch.app
+   xattr -cr ~/Applications/Notch.app
    ```
+   Clearing the quarantine also keeps macOS from silently running the app from a temporary read-only copy,
+   which would break launch at login.
 4. Open Notch. The settings window appears on first launch. After that, use the menu bar icon or the ⚙︎ in the expanded notch.
+   Don't move the app after turning on **Launch at login**. If you do move it, toggle the setting off and on again.
 
 ### Permissions (macOS asks the first time each one is needed)
 
@@ -39,7 +43,7 @@ don't need Xcode or a Mac to produce it. You only need the Mac to run it.
 | Accessibility | Only if you turn on **Replace the system volume & brightness HUD** |
 
 > **Updating:** because builds are ad-hoc signed, macOS treats each new build as a different app.
-> After updating, re-run the `xattr` command. If you use HUD replacement, also remove and re-add
+> After updating, replace the old `Notch.app` in the same place and re-run the `xattr` command. If you use HUD replacement, also remove and re-add
 > Notch under System Settings → Privacy & Security → Accessibility.
 
 ## Building
